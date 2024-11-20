@@ -10,7 +10,7 @@ use cocoa::appkit::{
 use cocoa::base::{id, nil, BOOL, NO, YES};
 use cocoa::foundation::{NSAutoreleasePool, NSPoint, NSRect, NSSize, NSString};
 use core_foundation::runloop::{
-    CFRunLoop, CFRunLoopTimer, CFRunLoopTimerContext, __CFRunLoopTimer, kCFRunLoopDefaultMode,
+    CFRunLoop, CFRunLoopTimer, CFRunLoopTimerContext, __CFRunLoopTimer, kCFRunLoopCommonModes,
 };
 use keyboard_types::KeyboardEvent;
 use objc::class;
@@ -79,7 +79,7 @@ impl WindowInner {
 
                 // Cancel the frame timer
                 if let Some(frame_timer) = window_state.frame_timer.take() {
-                    CFRunLoop::get_current().remove_timer(&frame_timer, kCFRunLoopDefaultMode);
+                    CFRunLoop::get_current().remove_timer(&frame_timer, kCFRunLoopCommonModes);
                 }
 
                 // Deregister NSView from NotificationCenter.
@@ -415,7 +415,7 @@ impl WindowState {
 
         let timer = CFRunLoopTimer::new(0.0, 0.015, 0, 0, timer_callback, &mut timer_context);
 
-        CFRunLoop::get_current().add_timer(&timer, kCFRunLoopDefaultMode);
+        CFRunLoop::get_current().add_timer(&timer, kCFRunLoopCommonModes);
 
         (*window_state_ptr).frame_timer.set(Some(timer));
     }
