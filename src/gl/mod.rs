@@ -75,7 +75,15 @@ pub struct GlContext {
 }
 
 impl GlContext {
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "macos")]
+    pub(crate) unsafe fn create(
+        parent: &RawWindowHandle, config: GlConfig, mtm: objc2::MainThreadMarker,
+    ) -> Result<GlContext, GlError> {
+        platform::GlContext::create(parent, config, mtm)
+            .map(|context| GlContext { context, phantom: PhantomData })
+    }
+
+    #[cfg(target_os = "windows")]
     pub(crate) unsafe fn create(
         parent: &RawWindowHandle, config: GlConfig,
     ) -> Result<GlContext, GlError> {
@@ -109,7 +117,7 @@ impl GlContext {
 
     /// On macOS the `NSOpenGLView` needs to be resized separtely from our main view.
     #[cfg(target_os = "macos")]
-    pub(crate) fn resize(&self, size: cocoa::foundation::NSSize) {
+    pub(crate) fn resize(&self, size: objc2_foundation::NSSize) {
         self.context.resize(size);
     }
 }
