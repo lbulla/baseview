@@ -1,45 +1,42 @@
-// This is required because the objc crate is causing a lot of warnings: https://github.com/SSheldon/rust-objc/issues/125
-// Eventually we should migrate to the objc2 crate and remove this.
-#![allow(unexpected_cfgs)]
-
 use std::ffi::c_void;
+use std::ptr::NonNull;
 use std::str::FromStr;
 
-use raw_window_handle::RawWindowHandle;
-
-use cocoa::appkit::{
+use objc2::rc::Retained;
+use objc2::{AnyThread, MainThreadMarker, MainThreadOnly};
+use objc2_app_kit::{
     NSOpenGLContext, NSOpenGLContextParameter, NSOpenGLPFAAccelerated, NSOpenGLPFAAlphaSize,
     NSOpenGLPFAColorSize, NSOpenGLPFADepthSize, NSOpenGLPFADoubleBuffer, NSOpenGLPFAMultisample,
     NSOpenGLPFAOpenGLProfile, NSOpenGLPFASampleBuffers, NSOpenGLPFASamples, NSOpenGLPFAStencilSize,
     NSOpenGLPixelFormat, NSOpenGLProfileVersion3_2Core, NSOpenGLProfileVersion4_1Core,
     NSOpenGLProfileVersionLegacy, NSOpenGLView, NSView,
 };
-use cocoa::base::{id, nil, YES};
-use cocoa::foundation::NSSize;
+use objc2_foundation::NSSize;
+use raw_window_handle::RawWindowHandle;
 
 use core_foundation::base::TCFType;
 use core_foundation::bundle::{CFBundleGetBundleWithIdentifier, CFBundleGetFunctionPointerForName};
 use core_foundation::string::CFString;
 
-use objc::{msg_send, sel, sel_impl};
-
 use super::{GlConfig, GlError, Profile};
 
 pub type CreationFailedError = ();
 pub struct GlContext {
-    view: id,
-    context: id,
+    view: Retained<NSOpenGLView>,
+    context: Retained<NSOpenGLContext>,
 }
 
 impl GlContext {
-    pub unsafe fn create(parent: &RawWindowHandle, config: GlConfig) -> Result<GlContext, GlError> {
+    pub unsafe fn create(
+        parent: &RawWindowHandle, config: GlConfig, mtm: MainThreadMarker,
+    ) -> Result<GlContext, GlError> {
         let handle = if let RawWindowHandle::AppKit(handle) = parent {
             handle
         } else {
             return Err(GlError::InvalidWindowHandle);
         };
 
-        let parent_view = handle.ns_view.as_ptr() as id;
+        let parent_view = handle.ns_view.as_ptr() as *mut NSView;
 
         let version = if config.version < (3, 2) && config.profile == Profile::Compatibility {
             NSOpenGLProfileVersionLegacy
@@ -76,33 +73,34 @@ impl GlContext {
 
         attrs.push(0);
 
-        let pixel_format = NSOpenGLPixelFormat::alloc(nil).initWithAttributes_(&attrs);
-
-        if pixel_format == nil {
+        let Some(pixel_format) = NSOpenGLPixelFormat::initWithAttributes(
+            NSOpenGLPixelFormat::alloc(),
+            NonNull::new(attrs.as_ptr() as _).unwrap(),
+        ) else {
             return Err(GlError::CreationFailed(()));
-        }
+        };
 
-        let view =
-            NSOpenGLView::alloc(nil).initWithFrame_pixelFormat_(parent_view.frame(), pixel_format);
-
-        if view == nil {
+        let Some(view) = NSOpenGLView::initWithFrame_pixelFormat(
+            NSOpenGLView::alloc(mtm),
+            (*parent_view).frame(),
+            Some(&pixel_format),
+        ) else {
             return Err(GlError::CreationFailed(()));
-        }
+        };
 
-        view.setWantsBestResolutionOpenGLSurface_(YES);
+        view.setWantsBestResolutionOpenGLSurface(true);
 
-        NSOpenGLView::display_(view);
-        parent_view.addSubview_(view);
+        view.display();
+        (*parent_view).addSubview(&view);
 
-        let context: id = msg_send![view, openGLContext];
-        let () = msg_send![context, retain];
-
-        context.setValues_forParameter_(
-            &(config.vsync as i32),
-            NSOpenGLContextParameter::NSOpenGLCPSwapInterval,
+        let Some(context) = view.openGLContext() else {
+            return Err(GlError::CreationFailed(()));
+        };
+        let vsync = &config.vsync as *const bool;
+        context.setValues_forParameter(
+            NonNull::new(vsync as _).unwrap(),
+            NSOpenGLContextParameter::SwapInterval,
         );
-
-        let () = msg_send![pixel_format, release];
 
         Ok(GlContext { view, context })
     }
@@ -112,7 +110,7 @@ impl GlContext {
     }
 
     pub unsafe fn make_not_current(&self) {
-        NSOpenGLContext::clearCurrentContext(self.context);
+        NSOpenGLContext::clearCurrentContext();
     }
 
     pub fn get_proc_address(&self, symbol: &str) -> *const c_void {
@@ -127,24 +125,15 @@ impl GlContext {
     pub fn swap_buffers(&self) {
         unsafe {
             self.context.flushBuffer();
-            let () = msg_send![self.view, setNeedsDisplay: YES];
+            self.view.setNeedsDisplay(true);
         }
     }
 
     /// On macOS the `NSOpenGLView` needs to be resized separtely from our main view.
     pub(crate) fn resize(&self, size: NSSize) {
-        unsafe { NSView::setFrameSize(self.view, size) };
         unsafe {
-            let _: () = msg_send![self.view, setNeedsDisplay: YES];
-        }
-    }
-}
-
-impl Drop for GlContext {
-    fn drop(&mut self) {
-        unsafe {
-            let () = msg_send![self.context, release];
-            let () = msg_send![self.view, release];
+            self.view.setFrameSize(size);
+            self.view.setNeedsDisplay(true);
         }
     }
 }

@@ -16,7 +16,12 @@ license = "MIT OR Apache-2.0"
 
 [features]
 default = []
-opengl = ["uuid", "x11/glx"]
+opengl = [
+    "objc2-app-kit/NSOpenGLView",
+    "objc2-app-kit/objc2-open-gl",
+    "uuid",
+    "x11/glx",
+]
 
 [dependencies]
 keyboard-types = { version = "0.6.1", default-features = false }
@@ -50,10 +55,13 @@ winapi = { version = "0.3.9", features = [
 uuid = { version = "1.20.0", features = ["v4"], optional = true }
 
 [target.'cfg(target_os="macos")'.dependencies]
-cocoa = "0.24.0"
-core-foundation = "0.9.1"
-objc = "0.2.7"
-uuid = { version = "0.8", features = ["v4"] }
+core-foundation = "0.10.1"
+objc2 = { git = "https://github.com/madsmtm/objc2.git", rev = "0c62eb96d7a3d9512f19b2c49d9dd18c8bbbb6e0" }
+objc2-app-kit = { git = "https://github.com/madsmtm/objc2.git", rev = "0c62eb96d7a3d9512f19b2c49d9dd18c8bbbb6e0", features = [
+    "NSResponder",
+] }
+objc2-foundation = { git = "https://github.com/madsmtm/objc2.git", rev = "0c62eb96d7a3d9512f19b2c49d9dd18c8bbbb6e0" }
+uuid = { version = "1.20.0", features = ["v4"], optional = true }
 
 [dev-dependencies]
 rtrb = "0.2"
