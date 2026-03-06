@@ -22,7 +22,6 @@ use winapi::um::winuser::{
 };
 
 use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::VecDeque;
 use std::ffi::OsStr;
 use std::num::NonZeroIsize;
 use std::os::windows::ffi::OsStrExt;
@@ -137,21 +136,7 @@ pub(crate) unsafe extern "system" fn wnd_proc(
     let window_state_ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut WindowState;
     if !window_state_ptr.is_null() {
         let result = wnd_proc_inner(hwnd, msg, wparam, lparam, &*window_state_ptr);
-
-        // If any of the above event handlers caused tasks to be pushed to the deferred tasks list,
-        // then we'll try to handle them now
-        loop {
-            // NOTE: This is written like this instead of using a `while let` loop to avoid exending
-            //       the borrow of `window_state.deferred_tasks` into the call of
-            //       `window_state.handle_deferred_task()` since that may also generate additional
-            //       messages.
-            let task = match (*window_state_ptr).deferred_tasks.borrow_mut().pop_front() {
-                Some(task) => task,
-                None => break,
-            };
-
-            (*window_state_ptr).handle_deferred_task(task);
-        }
+        (*window_state_ptr).handle_pending_size();
 
         // NOTE: This is not handled in `wnd_proc_inner` because of the deferred task loop above
         if msg == WM_NCDESTROY {
@@ -559,12 +544,12 @@ pub(super) struct WindowState {
     #[allow(dead_code)]
     kb_hook: KeyboardHookHandle,
 
-    /// Tasks that should be executed at the end of `wnd_proc`. This is needed to avoid mutably
+    /// A size that should be applied at the end of `wnd_proc`. This is needed to avoid mutably
     /// borrowing the fields from `WindowState` more than once. For instance, when the window
     /// handler requests a resize in response to a keyboard event, the window state will already be
     /// borrowed in `wnd_proc`. So the `resize()` function below cannot also mutably borrow that
     /// window state at the same time.
-    pub deferred_tasks: RefCell<VecDeque<WindowTask>>,
+    pending_size: RefCell<Option<Size>>,
 
     #[cfg(feature = "opengl")]
     pub gl_context: Option<GlContext>,
@@ -587,51 +572,42 @@ impl WindowState {
         self.handler.borrow_mut()
     }
 
-    /// Handle a deferred task as described in [`Self::deferred_tasks`].
-    pub(self) fn handle_deferred_task(&self, task: WindowTask) {
-        match task {
-            WindowTask::Resize(size) => {
-                // `self.window_info` will be modified in response to the `WM_SIZE` event that
-                // follows the `SetWindowPos()` call
-                let dpi = unsafe { GetDpiForWindow(self.hwnd) };
-                let scale_factor = match self.scale_policy {
-                    WindowScalePolicy::SystemScaleFactor => scale_factor(dpi),
-                    WindowScalePolicy::ScaleFactor(scale_factor) => scale_factor,
-                };
-                let window_info = WindowInfo::from_logical_size(size, scale_factor);
+    /// Handle a pending size as described in [`Self::pending_size`].
+    pub(self) fn handle_pending_size(&self) {
+        let Some(size) = self.pending_size.borrow_mut().take() else {
+            return;
+        };
 
-                // If the window is a standalone window then the size needs to include the window
-                // decorations
-                let mut rect = RECT {
-                    left: 0,
-                    top: 0,
-                    right: window_info.physical_size().width as i32,
-                    bottom: window_info.physical_size().height as i32,
-                };
-                unsafe {
-                    AdjustWindowRectExForDpi(&mut rect, self.dw_style, FALSE, 0, dpi);
-                    SetWindowPos(
-                        self.hwnd,
-                        null_mut(),
-                        rect.left,
-                        rect.top,
-                        rect.right - rect.left,
-                        rect.bottom - rect.top,
-                        SWP_NOZORDER | SWP_NOMOVE,
-                    )
-                };
-            }
-        }
+        // `self.window_info` will be modified in response to the `WM_SIZE` event that
+        // follows the `SetWindowPos()` call
+        let dpi = unsafe { GetDpiForWindow(self.hwnd) };
+        let scale_factor = match self.scale_policy {
+            WindowScalePolicy::SystemScaleFactor => scale_factor(dpi),
+            WindowScalePolicy::ScaleFactor(scale_factor) => scale_factor,
+        };
+        let window_info = WindowInfo::from_logical_size(size, scale_factor);
+
+        // If the window is a standalone window then the size needs to include the window
+        // decorations
+        let mut rect = RECT {
+            left: 0,
+            top: 0,
+            right: window_info.physical_size().width as i32,
+            bottom: window_info.physical_size().height as i32,
+        };
+        unsafe {
+            AdjustWindowRectExForDpi(&mut rect, self.dw_style, FALSE, 0, dpi);
+            SetWindowPos(
+                self.hwnd,
+                null_mut(),
+                rect.left,
+                rect.top,
+                rect.right - rect.left,
+                rect.bottom - rect.top,
+                SWP_NOZORDER | SWP_NOMOVE,
+            )
+        };
     }
-}
-
-/// Tasks that must be deferred until the end of [`wnd_proc()`] to avoid reentrant `WindowState`
-/// borrows. See the docstring on [`WindowState::deferred_tasks`] for more information.
-#[derive(Debug, Clone)]
-pub(super) enum WindowTask {
-    /// Resize the window to the given size. The size is in logical pixels. DPI scaling is applied
-    /// automatically.
-    Resize(Size),
 }
 
 pub struct Window<'a> {
@@ -774,7 +750,7 @@ impl Window<'_> {
                 scale_policy: options.scale,
                 dw_style: flags,
 
-                deferred_tasks: RefCell::new(VecDeque::with_capacity(4)),
+                pending_size: RefCell::new(None),
 
                 kb_hook,
 
@@ -867,8 +843,7 @@ impl Window<'_> {
     pub fn resize(&mut self, size: Size) {
         // To avoid reentrant event handler calls we'll defer the actual resizing until after the
         // event has been handled
-        let task = WindowTask::Resize(size);
-        self.state.deferred_tasks.borrow_mut().push_back(task);
+        self.state.pending_size.borrow_mut().replace(size);
     }
 
     pub fn set_mouse_cursor(&mut self, mouse_cursor: MouseCursor) {
