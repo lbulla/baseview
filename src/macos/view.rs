@@ -196,6 +196,21 @@ define_class!(
             self.trigger_deferrable_event(Event::Window(WindowEvent::Resized(new_window_info)));
         }
 
+        #[unsafe(method(setFrameSize:))]
+        fn set_frame_size(&self, size: NSSize) {
+            let scale_factor = self.scale_factor();
+            let new_window_info = WindowInfo::from_logical_size(
+                Size::new(size.width, size.height),
+                scale_factor,
+            );
+            self.ivars().window_info.set(new_window_info);
+            self.trigger_deferrable_event(Event::Window(WindowEvent::Resized(new_window_info)));
+
+            unsafe {
+                let () = self.send_super_message(NSView::class(), sel!(setFrameSize:), (size,));
+            }
+        }
+
         #[unsafe(method(draggingEntered:))]
         unsafe fn dragging_entered(
             &self, sender: &ProtocolObject<dyn NSDraggingInfo>
@@ -403,7 +418,6 @@ define_class!(
     unsafe impl NSWindowDelegate for View {
         #[unsafe(method(windowShouldClose:))]
         unsafe fn window_should_close(&self, _notification: &NSNotification) -> Bool {
-            self.trigger_event(Event::Window(WindowEvent::WillClose));
             self.close();
             Bool::NO
         }
@@ -494,6 +508,8 @@ impl View {
         if !self.is_open() {
             return;
         }
+
+        self.trigger_event(Event::Window(WindowEvent::WillClose));
 
         // Close the window if in non-parented mode
         if let Some(ns_window) = self.ivars().ns_window.take() {
