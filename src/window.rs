@@ -1,8 +1,6 @@
 use std::marker::PhantomData;
 
-use raw_window_handle::{
-    HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
-};
+use raw_window_handle::{HandleError, HasDisplayHandle, HasWindowHandle};
 
 use crate::event::{Event, EventStatus};
 use crate::window_open_options::WindowOpenOptions;
@@ -38,9 +36,9 @@ impl WindowHandle {
     }
 }
 
-unsafe impl HasRawWindowHandle for WindowHandle {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        self.window_handle.raw_window_handle()
+impl HasWindowHandle for WindowHandle {
+    fn window_handle(&self) -> Result<raw_window_handle::WindowHandle<'_>, HandleError> {
+        self.window_handle.window_handle()
     }
 }
 
@@ -67,9 +65,9 @@ impl<'a> Window<'a> {
         Window { window, phantom: PhantomData }
     }
 
-    pub fn open_parented<P, H, B>(parent: &P, options: WindowOpenOptions, build: B) -> WindowHandle
+    pub fn open_parented<P, H, B>(parent: P, options: WindowOpenOptions, build: B) -> WindowHandle
     where
-        P: HasRawWindowHandle,
+        P: HasWindowHandle,
         H: WindowHandler + 'static,
         B: FnOnce(&mut Window) -> H,
         B: Send + 'static,
@@ -118,14 +116,14 @@ impl<'a> Window<'a> {
     }
 }
 
-unsafe impl<'a> HasRawWindowHandle for Window<'a> {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        self.window.raw_window_handle()
+impl<'a> HasWindowHandle for Window<'a> {
+    fn window_handle(&self) -> Result<raw_window_handle::WindowHandle<'_>, HandleError> {
+        self.window.window_handle()
     }
 }
 
-unsafe impl<'a> HasRawDisplayHandle for Window<'a> {
-    fn raw_display_handle(&self) -> RawDisplayHandle {
-        self.window.raw_display_handle()
+impl<'a> HasDisplayHandle for Window<'a> {
+    fn display_handle(&self) -> Result<raw_window_handle::DisplayHandle<'_>, HandleError> {
+        self.window.display_handle()
     }
 }
