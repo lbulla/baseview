@@ -51,6 +51,7 @@ pub(super) fn get_xcursor(
     let cursor = match cursor {
         MouseCursor::Default => None, // catch this in the fallback case below
 
+        MouseCursor::Ptr => loadn(&["hand2", "hand1", "hand", "pointing_hand"])?,
         MouseCursor::Hand => loadn(&["hand2", "hand1"])?,
         MouseCursor::HandGrabbing => loadn(&["closedhand", "grabbing"])?,
         MouseCursor::Help => load("question_arrow")?,

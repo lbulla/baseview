@@ -10,6 +10,7 @@ use winapi::{
 pub fn cursor_to_lpcwstr(cursor: MouseCursor) -> LPCWSTR {
     match cursor {
         MouseCursor::Default => IDC_ARROW,
+        MouseCursor::Ptr => IDC_HAND,
         MouseCursor::Hand => IDC_HAND,
         MouseCursor::HandGrabbing => IDC_SIZEALL,
         MouseCursor::Help => IDC_HELP,

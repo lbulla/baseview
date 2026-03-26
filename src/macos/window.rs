@@ -4,14 +4,15 @@ use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
 use objc2::{ClassType, MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{
-    NSApp, NSApplicationActivationPolicy, NSBackingStoreType, NSPasteboard, NSPasteboardTypeString,
-    NSView, NSWindow, NSWindowStyleMask,
+    NSApp, NSApplicationActivationPolicy, NSBackingStoreType, NSCursor, NSPasteboard,
+    NSPasteboardTypeString, NSView, NSWindow, NSWindowStyleMask,
 };
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
 use raw_window_handle::{
     AppKitWindowHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawWindowHandle,
 };
 
+use crate::macos::cursor::cursor_to_nscursor;
 use crate::macos::view::View;
 use crate::{MouseCursor, Size, WindowHandler, WindowInfo, WindowOpenOptions, WindowScalePolicy};
 
@@ -177,8 +178,16 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn set_mouse_cursor(&mut self, _mouse_cursor: MouseCursor) {
-        todo!()
+    pub fn set_mouse_cursor(&mut self, mouse_cursor: MouseCursor) {
+        unsafe {
+            let ns_cursor = cursor_to_nscursor(mouse_cursor);
+            ns_cursor.set();
+
+            match mouse_cursor {
+                MouseCursor::Hidden => NSCursor::hide(),
+                _ => NSCursor::unhide(),
+            }
+        }
     }
 
     #[cfg(feature = "opengl")]

@@ -1,6 +1,7 @@
 #[derive(Debug, Eq, PartialEq, Clone, Copy, PartialOrd, Ord, Hash)]
 pub enum MouseCursor {
     Default,
+    Ptr,
     Hand,
     HandGrabbing,
     Help,
