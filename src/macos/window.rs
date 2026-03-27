@@ -4,8 +4,8 @@ use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
 use objc2::{ClassType, MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{
-    NSApp, NSApplicationActivationPolicy, NSBackingStoreType, NSCursor, NSPasteboard,
-    NSPasteboardTypeString, NSView, NSWindow, NSWindowStyleMask,
+    NSApp, NSApplicationActivationPolicy, NSBackingStoreType, NSCursor, NSView, NSWindow,
+    NSWindowStyleMask,
 };
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
 use raw_window_handle::{
@@ -216,13 +216,5 @@ impl<'a> HasWindowHandle for Window<'a> {
 impl<'a> HasDisplayHandle for Window<'a> {
     fn display_handle(&self) -> Result<raw_window_handle::DisplayHandle<'_>, HandleError> {
         Ok(raw_window_handle::DisplayHandle::appkit())
-    }
-}
-
-pub fn copy_to_clipboard(string: &str) {
-    unsafe {
-        let pb = NSPasteboard::generalPasteboard();
-        pb.clearContents();
-        pb.setString_forType(&NSString::from_str(string), NSPasteboardTypeString);
     }
 }
