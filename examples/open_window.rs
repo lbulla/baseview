@@ -40,7 +40,9 @@ impl WindowHandler for OpenWindowExample {
     fn on_event(&mut self, _window: &mut Window, event: Event) -> EventStatus {
         match &event {
             #[cfg(target_os = "macos")]
-            Event::Mouse(MouseEvent::ButtonPressed { .. }) => copy_to_clipboard("This is a test!"),
+            Event::Mouse(MouseEvent::ButtonPressed { .. }) => {
+                copy_to_clipboard("This is a test!", false).unwrap();
+            }
             Event::Window(WindowEvent::Resized(info)) => {
                 println!("Resized: {:?}", info);
                 let new_size = info.physical_size();

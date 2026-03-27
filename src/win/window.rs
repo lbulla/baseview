@@ -874,7 +874,3 @@ impl HasDisplayHandle for Window<'_> {
         Ok(raw_window_handle::DisplayHandle::windows())
     }
 }
-
-pub fn copy_to_clipboard(_data: &str) {
-    todo!()
-}

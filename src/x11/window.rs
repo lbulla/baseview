@@ -366,7 +366,3 @@ impl<'a> HasDisplayHandle for Window<'a> {
         unsafe { Ok(raw_window_handle::DisplayHandle::borrow_raw(raw)) }
     }
 }
-
-pub fn copy_to_clipboard(_data: &str) {
-    todo!()
-}
