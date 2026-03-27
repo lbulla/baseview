@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use std::ffi::c_void;
 
 use core_foundation::runloop::{
-    CFRunLoop, CFRunLoopTimer, CFRunLoopTimerContext, __CFRunLoopTimer, kCFRunLoopCommonModes,
+    __CFRunLoopTimer, kCFRunLoopCommonModes, CFRunLoop, CFRunLoopTimer, CFRunLoopTimerContext,
 };
 use keyboard_types::KeyboardEvent;
 use objc2::rc::Retained;
@@ -42,6 +42,8 @@ pub(crate) struct Ivars {
     window_info: Cell<WindowInfo>,
     /// Events that will be triggered at the end of `window_handler`'s borrow.
     deferred_events: RefCell<VecDeque<Event>>,
+    /// If a new frame is requested while processing events, delay it until processing is done.
+    pending_frame: Cell<bool>,
 
     /// Only set if we created the parent window, i.e. we are running in
     /// parentless mode
@@ -454,6 +456,7 @@ impl View {
             frame_timer: Cell::new(None),
             window_info: Cell::new(window_info),
             deferred_events: RefCell::default(),
+            pending_frame: Cell::new(false),
 
             ns_app: RefCell::new(ns_app),
             ns_window: RefCell::new(ns_window),
@@ -674,7 +677,14 @@ impl View {
         let window_handler = window_handler.as_mut().unwrap();
         self.send_deferred_events(window_handler.as_mut());
         let mut window = crate::Window::new(Window::new(self));
-        window_handler.on_event(&mut window, event)
+        let status = window_handler.on_event(&mut window, event);
+
+        if self.ivars().pending_frame.get() {
+            window_handler.on_frame(&mut window);
+            self.ivars().pending_frame.set(false);
+        }
+
+        status
     }
 
     unsafe fn trigger_mouse_move(&self, event: &NSEvent) {
@@ -692,11 +702,15 @@ impl View {
     }
 
     fn trigger_frame(&self) {
-        let mut window_handler = self.ivars().window_handler.borrow_mut();
-        let window_handler = window_handler.as_mut().unwrap();
-        let mut window = crate::Window::new(Window::new(self));
-        window_handler.on_frame(&mut window);
-        self.send_deferred_events(window_handler.as_mut());
+        if let Ok(mut window_handler) = self.ivars().window_handler.try_borrow_mut() {
+            let window_handler = window_handler.as_mut().unwrap();
+            let mut window = crate::Window::new(Window::new(self));
+            window_handler.on_frame(&mut window);
+            self.send_deferred_events(window_handler.as_mut());
+            self.ivars().pending_frame.set(false);
+        } else {
+            self.ivars().pending_frame.set(true);
+        }
     }
 }
 
