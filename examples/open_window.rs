@@ -1,12 +1,12 @@
+use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use rtrb::{Consumer, RingBuffer};
 use std::num::NonZeroU32;
 use std::time::Duration;
-
-use rtrb::{Consumer, RingBuffer};
 
 #[cfg(target_os = "macos")]
 use baseview::{copy_to_clipboard, MouseEvent};
 use baseview::{
-    Event, EventStatus, PhySize, Window, WindowEvent, WindowHandler, WindowScalePolicy,
+    Event, EventStatus, Handle, PhySize, Window, WindowEvent, WindowHandler, WindowScalePolicy,
 };
 
 #[derive(Debug, Clone)]
@@ -17,8 +17,8 @@ enum Message {
 struct OpenWindowExample {
     rx: Consumer<Message>,
 
-    _ctx: softbuffer::Context,
-    surface: softbuffer::Surface,
+    _ctx: softbuffer::Context<Handle>,
+    surface: softbuffer::Surface<Handle, Handle>,
     current_size: PhySize,
     damaged: bool,
 }
@@ -86,8 +86,9 @@ fn main() {
     });
 
     Window::open_blocking(window_open_options, |window| {
-        let ctx = unsafe { softbuffer::Context::new(window) }.unwrap();
-        let mut surface = unsafe { softbuffer::Surface::new(&ctx, window) }.unwrap();
+        let handle = window.handle();
+        let ctx = softbuffer::Context::new(handle).unwrap();
+        let mut surface = softbuffer::Surface::new(&ctx, handle).unwrap();
         surface.resize(NonZeroU32::new(512).unwrap(), NonZeroU32::new(512).unwrap()).unwrap();
 
         OpenWindowExample {
