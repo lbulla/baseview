@@ -20,7 +20,7 @@
 
 use std::cell::Cell;
 
-use keyboard_types::{Code, Key, KeyState, KeyboardEvent, Modifiers};
+use keyboard_types::{Code, Key, KeyState, KeyboardEvent, Modifiers, NamedKey};
 use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSEventType};
 
 use crate::keyboard::code_to_location;
@@ -186,53 +186,56 @@ fn key_code_to_code(key_code: u16) -> Code {
 /// The logic for this function is derived from KEY_MAP_COCOA bindings in
 /// NativeKeyToDOMKeyName.h.
 fn code_to_key(code: Code) -> Option<Key> {
-    Some(match code {
-        Code::Escape => Key::Escape,
-        Code::ShiftLeft | Code::ShiftRight => Key::Shift,
-        Code::AltLeft | Code::AltRight => Key::Alt,
-        Code::MetaLeft | Code::MetaRight => Key::Meta,
-        Code::ControlLeft | Code::ControlRight => Key::Control,
-        Code::CapsLock => Key::CapsLock,
-        // kVK_ANSI_KeypadClear
-        Code::NumLock => Key::Clear,
-        Code::Fn => Key::Fn,
-        Code::F1 => Key::F1,
-        Code::F2 => Key::F2,
-        Code::F3 => Key::F3,
-        Code::F4 => Key::F4,
-        Code::F5 => Key::F5,
-        Code::F6 => Key::F6,
-        Code::F7 => Key::F7,
-        Code::F8 => Key::F8,
-        Code::F9 => Key::F9,
-        Code::F10 => Key::F10,
-        Code::F11 => Key::F11,
-        Code::F12 => Key::F12,
-        Code::Pause => Key::Pause,
-        Code::ScrollLock => Key::ScrollLock,
-        Code::PrintScreen => Key::PrintScreen,
-        Code::Insert => Key::Insert,
-        Code::Delete => Key::Delete,
-        Code::Tab => Key::Tab,
-        Code::Backspace => Key::Backspace,
-        Code::ContextMenu => Key::ContextMenu,
-        // kVK_JIS_Kana
-        Code::Lang1 => Key::KanjiMode,
-        // kVK_JIS_Eisu
-        Code::Lang2 => Key::Eisu,
-        Code::Home => Key::Home,
-        Code::End => Key::End,
-        Code::PageUp => Key::PageUp,
-        Code::PageDown => Key::PageDown,
-        Code::ArrowLeft => Key::ArrowLeft,
-        Code::ArrowRight => Key::ArrowRight,
-        Code::ArrowUp => Key::ArrowUp,
-        Code::ArrowDown => Key::ArrowDown,
-        Code::Enter => Key::Enter,
-        Code::NumpadEnter => Key::Enter,
-        Code::Help => Key::Help,
-        _ => return None,
-    })
+    Some(
+        match code {
+            Code::Escape => NamedKey::Escape,
+            Code::ShiftLeft | Code::ShiftRight => NamedKey::Shift,
+            Code::AltLeft | Code::AltRight => NamedKey::Alt,
+            Code::MetaLeft | Code::MetaRight => NamedKey::Meta,
+            Code::ControlLeft | Code::ControlRight => NamedKey::Control,
+            Code::CapsLock => NamedKey::CapsLock,
+            // kVK_ANSI_KeypadClear
+            Code::NumLock => NamedKey::Clear,
+            Code::Fn => NamedKey::Fn,
+            Code::F1 => NamedKey::F1,
+            Code::F2 => NamedKey::F2,
+            Code::F3 => NamedKey::F3,
+            Code::F4 => NamedKey::F4,
+            Code::F5 => NamedKey::F5,
+            Code::F6 => NamedKey::F6,
+            Code::F7 => NamedKey::F7,
+            Code::F8 => NamedKey::F8,
+            Code::F9 => NamedKey::F9,
+            Code::F10 => NamedKey::F10,
+            Code::F11 => NamedKey::F11,
+            Code::F12 => NamedKey::F12,
+            Code::Pause => NamedKey::Pause,
+            Code::ScrollLock => NamedKey::ScrollLock,
+            Code::PrintScreen => NamedKey::PrintScreen,
+            Code::Insert => NamedKey::Insert,
+            Code::Delete => NamedKey::Delete,
+            Code::Tab => NamedKey::Tab,
+            Code::Backspace => NamedKey::Backspace,
+            Code::ContextMenu => NamedKey::ContextMenu,
+            // kVK_JIS_Kana
+            Code::Lang1 => NamedKey::KanjiMode,
+            // kVK_JIS_Eisu
+            Code::Lang2 => NamedKey::Eisu,
+            Code::Home => NamedKey::Home,
+            Code::End => NamedKey::End,
+            Code::PageUp => NamedKey::PageUp,
+            Code::PageDown => NamedKey::PageDown,
+            Code::ArrowLeft => NamedKey::ArrowLeft,
+            Code::ArrowRight => NamedKey::ArrowRight,
+            Code::ArrowUp => NamedKey::ArrowUp,
+            Code::ArrowDown => NamedKey::ArrowDown,
+            Code::Enter => NamedKey::Enter,
+            Code::NumpadEnter => NamedKey::Enter,
+            Code::Help => NamedKey::Help,
+            _ => return None,
+        }
+        .into(),
+    )
 }
 
 fn is_valid_key(s: &str) -> bool {
@@ -323,7 +326,7 @@ impl KeyboardState {
                     Key::Character(chars_ignoring)
                 } else {
                     // There may be more heroic things we can do here.
-                    Key::Unidentified
+                    NamedKey::Unidentified.into()
                 }
             }
         };

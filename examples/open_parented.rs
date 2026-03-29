@@ -1,12 +1,12 @@
 use baseview::{
-    Event, EventStatus, PhySize, Window, WindowEvent, WindowHandle, WindowHandler,
+    Event, EventStatus, Handle, PhySize, Window, WindowEvent, WindowHandle, WindowHandler,
     WindowScalePolicy,
 };
 use std::num::NonZeroU32;
 
 struct ParentWindowHandler {
-    _ctx: softbuffer::Context,
-    surface: softbuffer::Surface,
+    _ctx: softbuffer::Context<Handle>,
+    surface: softbuffer::Surface<Handle, Handle>,
     current_size: PhySize,
     damaged: bool,
 
@@ -15,8 +15,9 @@ struct ParentWindowHandler {
 
 impl ParentWindowHandler {
     pub fn new(window: &mut Window) -> Self {
-        let ctx = unsafe { softbuffer::Context::new(window) }.unwrap();
-        let mut surface = unsafe { softbuffer::Surface::new(&ctx, window) }.unwrap();
+        let handle = window.handle();
+        let ctx = softbuffer::Context::new(handle).unwrap();
+        let mut surface = softbuffer::Surface::new(&ctx, handle).unwrap();
         surface.resize(NonZeroU32::new(512).unwrap(), NonZeroU32::new(512).unwrap()).unwrap();
 
         let window_open_options = baseview::WindowOpenOptions {
@@ -76,16 +77,17 @@ impl WindowHandler for ParentWindowHandler {
 }
 
 struct ChildWindowHandler {
-    _ctx: softbuffer::Context,
-    surface: softbuffer::Surface,
+    _ctx: softbuffer::Context<Handle>,
+    surface: softbuffer::Surface<Handle, Handle>,
     current_size: PhySize,
     damaged: bool,
 }
 
 impl ChildWindowHandler {
     pub fn new(window: &mut Window) -> Self {
-        let ctx = unsafe { softbuffer::Context::new(window) }.unwrap();
-        let mut surface = unsafe { softbuffer::Surface::new(&ctx, window) }.unwrap();
+        let handle = window.handle();
+        let ctx = softbuffer::Context::new(handle).unwrap();
+        let mut surface = softbuffer::Surface::new(&ctx, handle).unwrap();
         surface.resize(NonZeroU32::new(512).unwrap(), NonZeroU32::new(512).unwrap()).unwrap();
 
         // TODO: no way to query physical size initially?

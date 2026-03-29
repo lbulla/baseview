@@ -1,6 +1,8 @@
 use std::marker::PhantomData;
 
-use raw_window_handle::{HandleError, HasDisplayHandle, HasWindowHandle};
+use raw_window_handle::{
+    HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle,
+};
 
 use crate::event::{Event, EventStatus};
 use crate::window_open_options::WindowOpenOptions;
@@ -12,6 +14,24 @@ use crate::macos as platform;
 use crate::win as platform;
 #[cfg(target_os = "linux")]
 use crate::x11 as platform;
+
+#[derive(Clone, Copy)]
+pub struct Handle {
+    display: RawDisplayHandle,
+    window: RawWindowHandle,
+}
+
+impl HasDisplayHandle for Handle {
+    fn display_handle(&self) -> Result<raw_window_handle::DisplayHandle<'_>, HandleError> {
+        unsafe { Ok(raw_window_handle::DisplayHandle::borrow_raw(self.display)) }
+    }
+}
+
+impl HasWindowHandle for Handle {
+    fn window_handle(&self) -> Result<raw_window_handle::WindowHandle<'_>, HandleError> {
+        unsafe { Ok(raw_window_handle::WindowHandle::borrow_raw(self.window)) }
+    }
+}
 
 pub struct WindowHandle {
     window_handle: platform::WindowHandle,
@@ -83,6 +103,13 @@ impl<'a> Window<'a> {
         B: Send + 'static,
     {
         platform::Window::open_blocking::<H, B>(options, build)
+    }
+
+    pub fn handle(&self) -> Handle {
+        Handle {
+            display: self.display_handle().unwrap().as_raw(),
+            window: self.window_handle().unwrap().as_raw(),
+        }
     }
 
     /// Close the window

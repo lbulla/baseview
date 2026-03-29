@@ -21,8 +21,9 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::mem;
 use std::ops::RangeInclusive;
+use std::str::FromStr;
 
-use keyboard_types::{Code, Key, KeyState, KeyboardEvent, Location, Modifiers};
+use keyboard_types::{Code, Key, KeyState, KeyboardEvent, Location, Modifiers, NamedKey};
 
 use winapi::shared::minwindef::{HKL, INT, LPARAM, UINT, WPARAM};
 use winapi::shared::ntdef::SHORT;
@@ -259,105 +260,108 @@ fn scan_to_code(scan_code: u32) -> Code {
 }
 
 fn vk_to_key(vk: VkCode) -> Option<Key> {
-    Some(match vk as INT {
-        VK_CANCEL => Key::Cancel,
-        VK_BACK => Key::Backspace,
-        VK_TAB => Key::Tab,
-        VK_CLEAR => Key::Clear,
-        VK_RETURN => Key::Enter,
-        VK_SHIFT | VK_LSHIFT | VK_RSHIFT => Key::Shift,
-        VK_CONTROL | VK_LCONTROL | VK_RCONTROL => Key::Control,
-        VK_MENU | VK_LMENU | VK_RMENU => Key::Alt,
-        VK_PAUSE => Key::Pause,
-        VK_CAPITAL => Key::CapsLock,
-        // TODO: disambiguate kana and hangul? same vk
-        VK_KANA => Key::KanaMode,
-        VK_JUNJA => Key::JunjaMode,
-        VK_FINAL => Key::FinalMode,
-        VK_KANJI => Key::KanjiMode,
-        VK_ESCAPE => Key::Escape,
-        VK_NONCONVERT => Key::NonConvert,
-        VK_ACCEPT => Key::Accept,
-        VK_PRIOR => Key::PageUp,
-        VK_NEXT => Key::PageDown,
-        VK_END => Key::End,
-        VK_HOME => Key::Home,
-        VK_LEFT => Key::ArrowLeft,
-        VK_UP => Key::ArrowUp,
-        VK_RIGHT => Key::ArrowRight,
-        VK_DOWN => Key::ArrowDown,
-        VK_SELECT => Key::Select,
-        VK_PRINT => Key::Print,
-        VK_EXECUTE => Key::Execute,
-        VK_SNAPSHOT => Key::PrintScreen,
-        VK_INSERT => Key::Insert,
-        VK_DELETE => Key::Delete,
-        VK_HELP => Key::Help,
-        VK_LWIN | VK_RWIN => Key::Meta,
-        VK_APPS => Key::ContextMenu,
-        VK_SLEEP => Key::Standby,
-        VK_F1 => Key::F1,
-        VK_F2 => Key::F2,
-        VK_F3 => Key::F3,
-        VK_F4 => Key::F4,
-        VK_F5 => Key::F5,
-        VK_F6 => Key::F6,
-        VK_F7 => Key::F7,
-        VK_F8 => Key::F8,
-        VK_F9 => Key::F9,
-        VK_F10 => Key::F10,
-        VK_F11 => Key::F11,
-        VK_F12 => Key::F12,
-        VK_NUMLOCK => Key::NumLock,
-        VK_SCROLL => Key::ScrollLock,
-        VK_BROWSER_BACK => Key::BrowserBack,
-        VK_BROWSER_FORWARD => Key::BrowserForward,
-        VK_BROWSER_REFRESH => Key::BrowserRefresh,
-        VK_BROWSER_STOP => Key::BrowserStop,
-        VK_BROWSER_SEARCH => Key::BrowserSearch,
-        VK_BROWSER_FAVORITES => Key::BrowserFavorites,
-        VK_BROWSER_HOME => Key::BrowserHome,
-        VK_VOLUME_MUTE => Key::AudioVolumeMute,
-        VK_VOLUME_DOWN => Key::AudioVolumeDown,
-        VK_VOLUME_UP => Key::AudioVolumeUp,
-        VK_MEDIA_NEXT_TRACK => Key::MediaTrackNext,
-        VK_MEDIA_PREV_TRACK => Key::MediaTrackPrevious,
-        VK_MEDIA_STOP => Key::MediaStop,
-        VK_MEDIA_PLAY_PAUSE => Key::MediaPlayPause,
-        VK_LAUNCH_MAIL => Key::LaunchMail,
-        VK_LAUNCH_MEDIA_SELECT => Key::LaunchMediaPlayer,
-        VK_LAUNCH_APP1 => Key::LaunchApplication1,
-        VK_LAUNCH_APP2 => Key::LaunchApplication2,
-        VK_OEM_ATTN => Key::Alphanumeric,
-        VK_CONVERT => Key::Convert,
-        VK_MODECHANGE => Key::ModeChange,
-        VK_PROCESSKEY => Key::Process,
-        VK_ATTN => Key::Attn,
-        VK_CRSEL => Key::CrSel,
-        VK_EXSEL => Key::ExSel,
-        VK_EREOF => Key::EraseEof,
-        VK_PLAY => Key::Play,
-        VK_ZOOM => Key::ZoomToggle,
-        VK_OEM_CLEAR => Key::Clear,
-        _ => return None,
-    })
+    Some(
+        match vk as INT {
+            VK_CANCEL => NamedKey::Cancel,
+            VK_BACK => NamedKey::Backspace,
+            VK_TAB => NamedKey::Tab,
+            VK_CLEAR => NamedKey::Clear,
+            VK_RETURN => NamedKey::Enter,
+            VK_SHIFT | VK_LSHIFT | VK_RSHIFT => NamedKey::Shift,
+            VK_CONTROL | VK_LCONTROL | VK_RCONTROL => NamedKey::Control,
+            VK_MENU | VK_LMENU | VK_RMENU => NamedKey::Alt,
+            VK_PAUSE => NamedKey::Pause,
+            VK_CAPITAL => NamedKey::CapsLock,
+            // TODO: disambiguate kana and hangul? same vk
+            VK_KANA => NamedKey::KanaMode,
+            VK_JUNJA => NamedKey::JunjaMode,
+            VK_FINAL => NamedKey::FinalMode,
+            VK_KANJI => NamedKey::KanjiMode,
+            VK_ESCAPE => NamedKey::Escape,
+            VK_NONCONVERT => NamedKey::NonConvert,
+            VK_ACCEPT => NamedKey::Accept,
+            VK_PRIOR => NamedKey::PageUp,
+            VK_NEXT => NamedKey::PageDown,
+            VK_END => NamedKey::End,
+            VK_HOME => NamedKey::Home,
+            VK_LEFT => NamedKey::ArrowLeft,
+            VK_UP => NamedKey::ArrowUp,
+            VK_RIGHT => NamedKey::ArrowRight,
+            VK_DOWN => NamedKey::ArrowDown,
+            VK_SELECT => NamedKey::Select,
+            VK_PRINT => NamedKey::Print,
+            VK_EXECUTE => NamedKey::Execute,
+            VK_SNAPSHOT => NamedKey::PrintScreen,
+            VK_INSERT => NamedKey::Insert,
+            VK_DELETE => NamedKey::Delete,
+            VK_HELP => NamedKey::Help,
+            VK_LWIN | VK_RWIN => NamedKey::Meta,
+            VK_APPS => NamedKey::ContextMenu,
+            VK_SLEEP => NamedKey::Standby,
+            VK_F1 => NamedKey::F1,
+            VK_F2 => NamedKey::F2,
+            VK_F3 => NamedKey::F3,
+            VK_F4 => NamedKey::F4,
+            VK_F5 => NamedKey::F5,
+            VK_F6 => NamedKey::F6,
+            VK_F7 => NamedKey::F7,
+            VK_F8 => NamedKey::F8,
+            VK_F9 => NamedKey::F9,
+            VK_F10 => NamedKey::F10,
+            VK_F11 => NamedKey::F11,
+            VK_F12 => NamedKey::F12,
+            VK_NUMLOCK => NamedKey::NumLock,
+            VK_SCROLL => NamedKey::ScrollLock,
+            VK_BROWSER_BACK => NamedKey::BrowserBack,
+            VK_BROWSER_FORWARD => NamedKey::BrowserForward,
+            VK_BROWSER_REFRESH => NamedKey::BrowserRefresh,
+            VK_BROWSER_STOP => NamedKey::BrowserStop,
+            VK_BROWSER_SEARCH => NamedKey::BrowserSearch,
+            VK_BROWSER_FAVORITES => NamedKey::BrowserFavorites,
+            VK_BROWSER_HOME => NamedKey::BrowserHome,
+            VK_VOLUME_MUTE => NamedKey::AudioVolumeMute,
+            VK_VOLUME_DOWN => NamedKey::AudioVolumeDown,
+            VK_VOLUME_UP => NamedKey::AudioVolumeUp,
+            VK_MEDIA_NEXT_TRACK => NamedKey::MediaTrackNext,
+            VK_MEDIA_PREV_TRACK => NamedKey::MediaTrackPrevious,
+            VK_MEDIA_STOP => NamedKey::MediaStop,
+            VK_MEDIA_PLAY_PAUSE => NamedKey::MediaPlayPause,
+            VK_LAUNCH_MAIL => NamedKey::LaunchMail,
+            VK_LAUNCH_MEDIA_SELECT => NamedKey::LaunchMediaPlayer,
+            VK_LAUNCH_APP1 => NamedKey::LaunchApplication1,
+            VK_LAUNCH_APP2 => NamedKey::LaunchApplication2,
+            VK_OEM_ATTN => NamedKey::Alphanumeric,
+            VK_CONVERT => NamedKey::Convert,
+            VK_MODECHANGE => NamedKey::ModeChange,
+            VK_PROCESSKEY => NamedKey::Process,
+            VK_ATTN => NamedKey::Attn,
+            VK_CRSEL => NamedKey::CrSel,
+            VK_EXSEL => NamedKey::ExSel,
+            VK_EREOF => NamedKey::EraseEof,
+            VK_PLAY => NamedKey::Play,
+            VK_ZOOM => NamedKey::ZoomToggle,
+            VK_OEM_CLEAR => NamedKey::Clear,
+            _ => return None,
+        }
+        .into(),
+    )
 }
 
 fn code_unit_to_key(code_unit: u32) -> Key {
     match code_unit {
-        0x8 | 0x7F => Key::Backspace,
-        0x9 => Key::Tab,
-        0xA | 0xD => Key::Enter,
-        0x1B => Key::Escape,
+        0x8 | 0x7F => NamedKey::Backspace.into(),
+        0x9 => NamedKey::Tab.into(),
+        0xA | 0xD => NamedKey::Enter.into(),
+        0x1B => NamedKey::Escape.into(),
         _ if code_unit >= 0x20 => {
             if let Some(c) = std::char::from_u32(code_unit) {
                 Key::Character(c.to_string())
             } else {
                 // UTF-16 error, very unlikely
-                Key::Unidentified
+                NamedKey::Unidentified.into()
             }
         }
-        _ => Key::Unidentified,
+        _ => NamedKey::Unidentified.into(),
     }
 }
 
@@ -428,7 +432,7 @@ impl KeyboardState {
     /// acute. Then we expect `WM_KEYDOWN` with `wparam = VK_OEM_6` followed by
     /// two `WM_CHAR` with `wparam = 0xB4` (corresponding to U+00B4 = acute accent).
     /// In this case, the result (produced on the final message in the sequence) is
-    /// a key event with `key = Key::Character("´´")`, which also matches browser
+    /// a key event with `key = NamedKey::Character("´´")`, which also matches browser
     /// behavior.
     ///
     /// # Safety
@@ -503,7 +507,7 @@ impl KeyboardState {
                         if let Ok(s) = String::from_utf16(&self.stash_utf16) {
                             Key::Character(s)
                         } else {
-                            Key::Unidentified
+                            NamedKey::Unidentified.into()
                         }
                     };
                     self.stash_utf16.clear();
@@ -672,7 +676,7 @@ impl KeyboardState {
         } else {
             let mapped = self.map_vk(vk);
             if mapped >= (1 << 31) {
-                Key::Dead
+                NamedKey::Dead.into()
             } else {
                 code_unit_to_key(mapped)
             }
